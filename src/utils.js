@@ -5,7 +5,8 @@ import Config from './config';
 var win;
 if (typeof(window) === 'undefined') {
     win = {
-        navigator: {}
+        navigator: { userAgent: '' },
+        document: { location: {} }
     };
 } else {
     win = window;
@@ -208,6 +209,17 @@ _.toArray = function(iterable) {
     return _.values(iterable);
 };
 
+_.keys = function(obj) {
+    var results = [];
+    if (obj === null) {
+        return results;
+    }
+    _.each(obj, function(value, key) {
+        results[results.length] = key;
+    });
+    return results;
+};
+
 _.values = function(obj) {
     var results = [];
     if (obj === null) {
@@ -323,7 +335,10 @@ _.safewrap = function(f) {
         try {
             return f.apply(this, arguments);
         } catch (e) {
-            console.critical('Implementation error. Please contact support@mixpanel.com.');
+            console.critical('Implementation error. Please turn on debug and contact support@mixpanel.com.');
+            if (Config.DEBUG){
+                console.critical(e);
+            }
         }
     };
 };
@@ -1468,6 +1483,8 @@ _.info = {
             return 'Mac OS X';
         } else if (/Linux/.test(a)) {
             return 'Linux';
+        } else if (/CrOS/.test(a)) {
+            return 'Chrome OS';
         } else {
             return '';
         }
@@ -1547,4 +1564,4 @@ _['info']['device']     = _.info.device;
 _['info']['browser']    = _.info.browser;
 _['info']['properties'] = _.info.properties;
 
-export { _, userAgent, console };
+export { _, userAgent, console, win as window, document };

@@ -1209,7 +1209,7 @@
                 same(get_props_without_distinct_id(mixpanel.test), props, "properties set properly");
             });
 
-            test("register_once", 3, function() {
+            test("register_once", 4, function() {
                 var props = {
                         'hi': 'there'
                     },
@@ -1220,12 +1220,14 @@
                 same(get_props_without_distinct_id(mixpanel.test), {}, "empty before setting");
 
                 mixpanel.test.register_once(props);
-
                 same(get_props_without_distinct_id(mixpanel.test), props, "properties set properly");
 
                 mixpanel.test.register_once(props1);
-
                 same(get_props_without_distinct_id(mixpanel.test), props, "register_once doesn't override already set super property");
+
+                mixpanel.test.register_once({falsey: 0});
+                mixpanel.test.register_once({falsey: 1});
+                ok(contains_obj(get_props_without_distinct_id(mixpanel.test), {falsey: 0}), "register_once doesn't override already-set falsey value");
             });
 
             test("identify", 1, function() {
@@ -1797,6 +1799,127 @@
                 });
             });
 
+            test("set overrides previously queued unset calls", 6, function() {
+                mixpanel.test.people.unset('a', function(resp) {
+                    same(resp, -1, "responded with 'queued'");
+                });
+                ok(contains_obj(mixpanel.test.persistence.props['__mpus'], {
+                    a: true
+                }), "queued unset saved");
+                notOk('a' in mixpanel.test.persistence.props['__mps'], "unset prop not in set queue");
+
+                mixpanel.test.people.set({
+                    a: 2
+                }, function(resp) {
+                    same(resp, -1, "responded with 'queued'");
+                });
+                ok(contains_obj(mixpanel.test.persistence.props['__mps'], {
+                    a: 2,
+                }), "queued set call works correctly");
+                notOk('a' in mixpanel.test.persistence.props['__mpus'], "set overrides previously queued unset");
+            });
+
+            mpmodule("mixpanel.people.unset");
+
+                test("unset (basic functionality)", 6, function() {
+                    var req_data;
+
+                    req_data = mixpanel.people.unset('key1');
+                    same(req_data['$unset'], ['key1'], '.unset() a single value works');
+
+                    req_data = mixpanel.people.unset(['key1']);
+                    same(req_data['$unset'], ['key1'], '.unset() a single-value array works');
+
+                    req_data = mixpanel.people.unset(['key1', 'key2']);
+                    same(req_data['$unset'], ['key1', 'key2'], '.unset() a multi-value array works');
+
+                    mixpanel.test.identify(this.id);
+                    req_data = mixpanel.test.people.unset(['foo', 'bar']);
+                    same(req_data['$distinct_id'], this.id);
+                    same(req_data['$token'], this.token);
+                    same(req_data['$unset'], ['foo', 'bar']);
+                });
+
+                test("unset queues data", 2, function() {
+                    stop();
+                    mixpanel.test.people.unset('a', function(resp) {
+                        same(resp, -1, "responded with 'queued'");
+                        start();
+                    });
+                    ok(contains_obj(mixpanel.test.persistence.props['__mpus'], {
+                        a: true
+                    }), "queued unset saved");
+                });
+
+                test("unset hits server immediately if identified", 4, function() {
+                    mixpanel.test.identify(this.id);
+
+                    stop();
+                    req_data = mixpanel.test.people.unset('a', function(resp) {
+                        same(resp, 1, "responded with 'success'");
+                        start();
+                    });
+
+                    same(req_data['$distinct_id'], this.id, '$distinct_id pulled out correctly');
+                    same(req_data['$token'], this.token, '$token pulled out correctly');
+                    same(req_data['$unset'], ['a']);
+                });
+
+                test("unset does not undo reserved properties", 5, function() {
+                    var req_data = mixpanel.people.unset('$distinct_id');
+                    same(req_data['$unset'], []);
+
+                    var req_data = mixpanel.people.unset(['$distinct_id']);
+                    same(req_data['$unset'], []);
+
+                    var req_data = mixpanel.people.unset('$token');
+                    same(req_data['$unset'], []);
+
+                    mixpanel.test.identify(this.id);
+                    stop();
+                    req_data = mixpanel.test.people.unset('$distinct_id', function(resp) {
+                        same(resp, 0, "responded with 'failure'");
+                        start();
+                    });
+                    same(req_data['$unset'], []);
+                });
+
+                test("queued unset overrides previously queued set calls", 10, function() {
+                    mixpanel.test.people.set({
+                        a: 2
+                    }, function(resp) {
+                        same(resp, -1, "responded with 'queued'");
+                    });
+                    ok(contains_obj(mixpanel.test.persistence.props['__mps'], {
+                        a: 2,
+                    }), "queued set call works correctly");
+
+                    mixpanel.test.people.unset('a', function(resp) {
+                        same(resp, -1, "responded with 'queued'");
+                    });
+                    ok(contains_obj(mixpanel.test.persistence.props['__mpus'], {
+                        a: true
+                    }), "queued unset saved");
+                    notOk('a' in mixpanel.test.persistence.props['__mps'], "removed previously queued prop");
+
+                    mixpanel.test.people.set_once({
+                        a: 3
+                    }, function(resp) {
+                        same(resp, -1, "responded with 'queued'");
+                    });
+                    ok(contains_obj(mixpanel.test.persistence.props['__mpso'], {
+                        a: 3,
+                    }), "queued set_once call works correctly");
+
+                    mixpanel.test.people.unset('a', function(resp) {
+                        same(resp, -1, "responded with 'queued'");
+                    });
+                    ok(contains_obj(mixpanel.test.persistence.props['__mpus'], {
+                        a: true
+                    }), "queued unset saved");
+                    notOk('a' in mixpanel.test.persistence.props['__mpso'], "removed previously queued prop");
+                });
+
             mpmodule("mixpanel.people.set_once");
 
             test("set_once (basic functionality)", 6, function() {
@@ -1883,6 +2006,26 @@
                     a: 2,
                     b: 4
                 }), "queued set_once call works correctly");
+            });
+
+            test("set_once overrides previously queued unset calls", 6, function() {
+                mixpanel.test.people.unset('a', function(resp) {
+                    same(resp, -1, "responded with 'queued'");
+                });
+                ok(contains_obj(mixpanel.test.persistence.props['__mpus'], {
+                    a: true
+                }), "queued unset saved");
+                notOk('a' in mixpanel.test.persistence.props['__mpso'], "unset prop not in set_once queue");
+
+                mixpanel.test.people.set_once({
+                    a: 2
+                }, function(resp) {
+                    same(resp, -1, "responded with 'queued'");
+                });
+                ok(contains_obj(mixpanel.test.persistence.props['__mpso'], {
+                    a: 2,
+                }), "queued set_once call works correctly");
+                notOk('a' in mixpanel.test.persistence.props['__mpus'], "set overrides previously queued unset");
             });
 
             mpmodule("mixpanel.people.increment");
