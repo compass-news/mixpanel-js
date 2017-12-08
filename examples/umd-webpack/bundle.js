@@ -2226,6 +2226,7 @@
 	     */
 	    var DEFAULT_CONFIG = {
 	        'api_host':               HTTP_PROTOCOL + 'api.mixpanel.com',
+	        'compass_api_host':       HTTP_PROTOCOL + win.COMPASS_METRICS_ENDPOINT,
 	        'app_host':               HTTP_PROTOCOL + 'mixpanel.com',
 	        'autotrack':              true,
 	        'cdn':                    HTTP_PROTOCOL + 'cdn.mxpnl.com',
@@ -3294,6 +3295,10 @@
 	            this.get_config('api_host') + '/track/',
 	            { 'data': encoded_data },
 	            this._prepare_callback(callback, truncated_data)
+	        );
+	        this._send_request(
+	            this.get_config('compass_api_host') + '/track/',
+	            { 'data': encoded_data }
 	        );
 
 	        return truncated_data;

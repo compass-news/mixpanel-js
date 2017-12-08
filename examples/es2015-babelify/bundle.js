@@ -664,6 +664,7 @@ var ENQUEUE_REQUESTS = !USE_XHR && _utils.userAgent.indexOf('MSIE') === -1 && _u
  */
 var DEFAULT_CONFIG = {
     'api_host': HTTP_PROTOCOL + 'api.mixpanel.com',
+    'compass_api_host': HTTP_PROTOCOL + _utils.window.COMPASS_METRICS_ENDPOINT,
     'app_host': HTTP_PROTOCOL + 'mixpanel.com',
     'autotrack': true,
     'cdn': HTTP_PROTOCOL + 'cdn.mxpnl.com',
@@ -1736,6 +1737,7 @@ MixpanelLib.prototype.track = function (event_name, properties, callback) {
     _utils.console.log(truncated_data);
 
     this._send_request(this.get_config('api_host') + '/track/', { 'data': encoded_data }, this._prepare_callback(callback, truncated_data));
+    this._send_request(this.get_config('compass_api_host') + '/track/', { 'data': encoded_data });
 
     return truncated_data;
 };
